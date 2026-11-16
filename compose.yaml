@@ -1,11 +1,18 @@
 services:
   bot:
-    image: ghcr.io/breno-hof/heroes-theme-bot:edge
+    image: ghcr.io/breno-hof/heroes-theme-bot:latest
     build: .
-    env_file: .env
+    restart: unless-stopped
+    environment:
+      HT_DISCORD_TOKEN: ${HT_DISCORD_TOKEN}
+      HT_LOG_LEVEL: ${HT_LOG_LEVEL:-INFO}
     ports:
       - "8765:8765"
-    restart: unless-stopped
+    volumes:
+      - heroes-theme-data:/data
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+
+volumes:
+  heroes-theme-data:

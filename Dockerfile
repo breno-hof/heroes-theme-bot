@@ -24,16 +24,20 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_VERSION}-slim AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    HT_DB_PATH=/data/heroes-theme.db
 
+# /data holds the tenant database; mount a volume there so configuration survives redeploys.
 RUN groupadd --system --gid 10001 bot \
-    && useradd --system --uid 10001 --gid bot --no-create-home --shell /usr/sbin/nologin bot
+    && useradd --system --uid 10001 --gid bot --no-create-home --shell /usr/sbin/nologin bot \
+    && install -d -o 10001 -g 10001 -m 0700 /data
 
 COPY --from=builder /app/.venv /app/.venv
 
 USER 10001:10001
 WORKDIR /app
 EXPOSE 8765
+VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('HT_WS_PORT', '8765')}/healthz\", timeout=2)"]

@@ -11,13 +11,15 @@ from heroes_theme_bot.bot import HeroesThemeBot
 from heroes_theme_bot.config import Settings
 from heroes_theme_bot.hub import TriggerHub
 from heroes_theme_bot.logging import configure_logging
+from heroes_theme_bot.tenants import TenantStore
 
 log = structlog.stdlib.get_logger(__name__)
 
 
 async def run(settings: Settings) -> None:
-    hub = TriggerHub(settings)
-    bot = HeroesThemeBot(settings, hub)
+    tenants = TenantStore(settings.db_path)
+    hub = TriggerHub(settings, tenants)
+    bot = HeroesThemeBot(settings, hub, tenants)
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -26,7 +28,10 @@ async def run(settings: Settings) -> None:
 
     async with hub.run(), bot:
         log.info("starting", version=__version__)
-        await bot.start(settings.discord_token.get_secret_value())
+        try:
+            await bot.start(settings.discord_token.get_secret_value())
+        finally:
+            tenants.close()
     log.info("stopped")
 
 

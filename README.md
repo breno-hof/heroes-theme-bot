@@ -10,27 +10,42 @@ Debounce, hold and cooldown are deliberately not applied here. They live in the 
 
 ## Run
 
-Create a Discord application with a bot user and invite it with the **Connect** and **View Channel** permissions. No privileged intents are needed.
+Create a Discord application with a bot user and invite it with the `bot` and `applications.commands` scopes and the **View Channel** and **Connect** permissions. No privileged intents are needed.
 
 ```sh
-cp .env.example .env   # fill in the token, IDs and a WebSocket secret
+cp .env.example .env   # set HT_DISCORD_TOKEN
 docker compose up -d
 ```
+
+The only required environment variable is the bot token. One bot process serves any number of Discord servers.
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `HT_DISCORD_TOKEN` | yes | | Bot token |
-| `HT_GUILD_ID` | yes | | Guild to operate in |
-| `HT_VOICE_CHANNEL_ID` | yes | | Voice channel joined on startup |
-| `HT_WS_TOKEN` | yes | | Shared secret for VTT clients, at least 16 characters |
+| `HT_DB_PATH` | no | `/data/heroes-theme.db` in the image | SQLite file with per-server configuration |
 | `HT_WS_HOST` / `HT_WS_PORT` | no | `0.0.0.0` / `8765` | WebSocket listen address |
-| `HT_WS_ALLOWED_ORIGINS` | no | any | JSON list of allowed browser origins |
 | `HT_SILENCE_TIMEOUT_MS` | no | `300` | Gap without audio that counts as "stopped speaking" |
 | `HT_LOG_LEVEL` / `HT_LOG_FORMAT` | no | `INFO` / `json` | Logging |
+
+Mount a volume at `/data` (the compose file does) or the configuration is lost when the container is recreated.
 
 `GET /healthz` on the WebSocket port returns `200 ok`.
 
 The server speaks plain `ws://`. A Foundry world served over HTTPS can only connect to `wss://`, so put the bot behind a TLS-terminating reverse proxy (Caddy, nginx, Traefik) unless both run on localhost.
+
+## Configure a server
+
+Each Discord server is a separate tenant, configured with the `/heroestheme` command. The command is hidden from members without the **Administrator** permission, the bot re-checks that permission on every use, and all replies are visible only to the admin who ran it.
+
+| Command | Effect |
+| --- | --- |
+| `/heroestheme channel <voice channel>` | Sets the channel to listen in and joins it |
+| `/heroestheme token` | Generates the bridge token for the VTT and shows it once; running it again replaces the token |
+| `/heroestheme origins [origins]` | Restricts which websites may connect with this server's token; empty allows any |
+| `/heroestheme status` | Shows the current configuration and connection state |
+| `/heroestheme leave` | Leaves the voice channel; token and origins are kept |
+
+The bridge token identifies the server: a VTT client that presents it receives that server's speaking events and nobody else's. Only a SHA-256 digest of the token is stored. Removing the bot from a server deletes that server's configuration.
 
 ## Develop
 

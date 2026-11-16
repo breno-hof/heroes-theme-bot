@@ -111,7 +111,7 @@ class SpeakingObserver:
 
     silence_timeout_s: float
 
-    def on_speaking_change(self, channel_id: int, user_id: int, speaking: bool) -> None:
+    def on_speaking_change(self, guild_id: int, channel_id: int, user_id: int, speaking: bool) -> None:
         raise NotImplementedError
 
 
@@ -145,7 +145,7 @@ class SpeakingVoiceClient(discord.VoiceClient):
     def _emit(self, user_id: int, speaking: bool) -> None:
         if self.user is not None and user_id == self.user.id:
             return
-        self._observer.on_speaking_change(self.channel.id, user_id, speaking)
+        self._observer.on_speaking_change(self.guild.id, self.channel.id, user_id, speaking)
 
     async def _on_voice_ws_message(self, ws: DiscordVoiceWebSocket, msg: dict[str, Any]) -> None:
         op, data = msg.get("op"), msg.get("d") or {}
